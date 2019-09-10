@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pagination</title>
+</head>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background-color: #f5f6f7;
+    display: flex;
+    justify-content: center;
+    padding: 40px 0 60px;
+  }
+  #app {
+    width: 100%;
+  }
+  .grid {
+    width: 100%;
+    max-width: 1280px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin: 0 auto;
+  }
+  .grid__item {
+    width: 30%;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin: 0 20px 40px;
+  }
+  .card {
+    background-color: #fff;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    border-radius: 2px;
+    line-height: 0;
+    cursor: pointer;
+  }
+  .card:hover {
+    box-shadow: 0 3px 6px rgba(0,0,0,.2)
+  }
+  .card__body {
+    width: 100%;
+    height: 215px;
+    overflow: hidden;
+    background-color: #eee;
+  }
+  .card__body img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .card__footer {
+    width: 100%;
+    padding: 10px 15px;
+  }
+  .media__obj {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #d8d8d8;
+    margin-right: 15px;
+    float: left;
+  }
+  .media__body {
+    width: 100%;
+    height: 32px;
+    line-height: 32px;
+  }
+  .media__body a {
+    font-family: Courier, serif;
+    font-size: 15px;
+    color: #999;
+  }
+  .media__body a:hover {
+    text-decoration: none;
+  }
+  .pag {
+    width: 100%;
+    height: 44px;
+    display: flex;
+    justify-content: space-between;
+    margin: 30px auto 30px;
+    padding: 0 15px;
+    max-width: 1280px;
+  }
+  .pag__left, .pag__right {
+    width: 20%;
+  }
+  .pag__left a, .pag__right a{
+    width: 60%;
+  }
+  .pag__right a {
+    float: right;
+  }
+  .pag a, .pag span {
+    display: block;
+    text-align: center;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 300;
+    line-height: 42px;
+    height: 44px;
+    color: #999;
+    font-size: 18px;
+  }
+  .pag a {
+    padding: 0 20px;
+    max-width: 160px;
+    background-color: transparent;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    text-decoration: none;
+    margin: 0 6px;
+    transition: all .2s ease-in-out;
+  }
+  .pag a.current {
+    border-color: #ea4c89;
+    color: #ea4c89;
+  }
+  @media (hover) {
+    .pag a:hover {
+        border-color: #ea4c89;
+        color: #ea4c89;
+    }
+  }
+  .pag__mid {
+    display: flex;
+    justify-content: center;
+    width: 60%;
+  }
+  .pag__mid ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .pag__mid li {
+    display: inline-block;
+  }
+  </style>
+<body>
+  <template id="pag-template">
+    <div class="pag">
+      <div class="pag__left">
+        <a href="#" v-if="hasPrev()" @click.prevent="changePage(prevPage)">Previous</a>
+      </div>
+      <div class="pag__mid">
+        <ul>
+          <li v-if="hasFirst()"><a href="#" @click.prevent="changePage(1)">1</a></li>
+          <li v-if="hasFirst()">...</li>
+          <li v-for="page in pages">
+            <a href="#" @click.prevent="changePage(page)" :class="{ current: current == page }">
+              {{ page }}
+            </a>
+          </li>
+          <li v-if="hasLast()">...</li>
+          <li v-if="hasLast()"><a href="#" @click.prevent="changePage(totalPages)">{{ totalPages }}</a></li>
+        </ul>
+      </div>
+      <div class="pag__right">
+        <a href="#" v-if="hasNext()" @click.prevent="changePage(nextPage)">Next</a>
+      </div>
+    </div>
+  </template>
+  <div id="app">
+    <pag 
+      :current="currentPage" 
+      :total="totalPhotos" 
+      :per-page="perPage" 
+      @page-changed="fetchPhotos"
+    ></pag>
+    <section class="grid">
+      <div class="grid__item card" v-for="photo in photos">
+        <div class="card__body">
+          <img :src="photo.urls.small" alt="">
+        </div>
+        <div class="card__footer media">
+          <img :src="photo.user.profile_image.small" alt="" class="media__obj">
+          <div class="media__body">
+            <a :href="photo.user.portfolio_url" target="_blank">{{ photo.user.name }}</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script src="https://unpkg.com/vue/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/vue.resource/1.0.3/vue-resource.min.js"></script>
+  <script>
+    var appId = 'f8b82b988a70d286e363bfc13958bb645abca3270089c5aeb21f0b6f28c91d10'
+    Vue.component('pag', {
+      template: '#pag-template',
+      props: {
+        current: {
+          type: Number,
+          default: 1
+        },
+        total: {
+          type: Number,
+          default: 0
+        },
+        perPage: {
+          type: Number,
+          default: 9
+        },
+        pageRange: {
+          type: Number,
+          default: 2
+        }
+      },
+      computed: {
+        pages: function() {
+          var pages = []
+          for(var i = this.rangeStart; i <= this.rangeEnd; i++) {
+            pages.push(i)
+          }
+          return pages
+        },
+        rangeStart: function() {
+          var start = this.current - this.pageRange
+          return (start > 0) ? start : 1
+        },
+        rangeEnd: function() {
+          var end = this.current + this.pageRange
+          return (end < this.totalPages) ? end : this.totalPages
+        },
+        totalPages: function() {
+          return Math.ceil(this.total/this.perPage)
+        },
+        nextPage: function() {
+          return this.current + 1
+        },
+        prevPage: function() {
+          return this.current - 1
+        }
+      },
+      methods: {
+        hasFirst: function() {
+          return this.rangeStart !== 1
+        },
+        hasLast: function() {
+          return this.rangeEnd < this.totalPages
+        },
+        hasPrev: function() {
+          return this.current > 1
+        },
+        hasNext: function() {
+          return this.current < this.totalPages
+        },
+        changePage: function(page) {
+          this.$emit('page-changed', page)
+        }
+      }
+    })
+    new Vue({
+      el: '#app',
+      data: {
+        photos: [],
+        totalPhotos: 0,
+        perPage: 18,
+        currentPage: 1
+      },
+      methods: {
+        fetchPhotos: function(page) {
+          var options = {
+            params: {
+              client_id: appId,
+              page: page,
+              per_page: this.perPage
+            }
+          }
+          this.$http.get('https://api.unsplash.com/photos', options).then(function(response) {
+            this.photos = response.data
+            console.log(response.data)
+            this.totalPhotos = parseInt(response.headers.get('x-total'))
+            this.currentPage = page
+          }, console.log)
+        }
+      },
+      created: function() {
+        this.fetchPhotos(this.currentPage)
+      }
+    })
+  </script>
+</body>
+</html>
